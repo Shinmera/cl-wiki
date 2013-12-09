@@ -24,4 +24,6 @@
            :page-protect
            :page-rollback
            :user-block
-           :recent-changes))
+           :recent-changes
+           :wiki-search
+           :wiki-parse))

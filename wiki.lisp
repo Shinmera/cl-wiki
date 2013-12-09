@@ -33,7 +33,9 @@
       (let ((resp (drakma:http-request *wiki-api*
                                        :method :POST :parameters (acons "format" "json" (acons "action" action extraparams))
                                        :cookie-jar *cookies*
-                                       :want-stream T))
+                                       :want-stream T
+                                       :external-format-in :utf-8
+                                       :external-format-out :utf-8))
             (json NIL))
         (setf json (json:decode-json resp))
         (close resp)      
@@ -178,3 +180,48 @@
     (let ((query (request "query" proplist)))
       (values (config-tree query :query :recentchanges)
               (config-tree query :query-continue :recentchanges :rcstart)))))
+
+(defvar *search-proplist* '("size" "wordcount" "timestamp" "score" "snippet" "titlesnippet" "redirectsnippet" "redirecttitle" "sectionsnippet" "sectiontitle" "hasrelated"))
+(defvar *search-whatlist* '("title" "text" "nearmatch"))
+(defun wiki-search (query &key (properties '("timestamp")) (offset 0) (limit 10) redirects (what "title"))
+  "Search for matching pages."
+  (assert (find-all properties *search-proplist*) () "PROPERTIES must be one of ~a." *search-proplist*)
+  (assert (find what *search-whatlist* :test #'string-equal) () "WHAT must be one of ~a." *search-whatlist*)
+  (let ((query (request "query" `(("list" . "search") 
+                                  ("srprop" . ,(format NIL "~{~a~^|~}" properties))
+                                  ("sroffset" . ,(format NIL "~a" offset)) 
+                                  ("srlimit" . ,(format NIL "~a" limit))
+                                  ("srredirects" . ,(format NIL "~:[false~;true~]" redirects)) 
+                                  ("srwhat" . ,what)
+                                  ("srsearch" . ,query)))))
+    (values (config-tree query :query :search))))
+
+(defvar *parse-proplist* '("text" "langlinks" "categories" "categorieshtml" "languageshtml" "links" "templates" "images" "externallinks" "sections" "revid" "displaytitle" "headitems" "headhtml" "iwlinks"))
+(defvar *parse-modellist* '("wikitext" "javascript" "css" "text" "JsonZeroConfig" "Scribunto" "JsonSchema"))
+(defun wiki-parse (&key (disablepp T) old-id page page-id only-pst (properties '("text")) pst redirects section sections language summary text title contentmodel generatexml)
+  "Get the parsed content of a wiki page."
+  (assert (or page page-id summary text title) () "One of PAGE PAGE-ID SUMMARY TEXT or TITLE required.")
+  (let ((proplist))
+    (when disablepp (push (cons "disablepp" "true") proplist))
+    (when old-id (push (cons "old-id" (format NIL "~a" old-id)) proplist))
+    (when page (push (cons "page" page) proplist))
+    (when page-id (push (cons "pageid" (format NIL "~a" page-id)) proplist))
+    (when only-pst (push (cons "onlypst" "true") proplist))
+    (when properties 
+      (assert (find-all properties *parse-proplist*) () "PROPERTIES must be one or more of ~a." *parse-proplist*)
+      (push (cons "prop" (format NIL "~{~a~^|~}" properties)) proplist))
+    (when pst (push (cons "pst" "true") proplist))
+    (when redirects (push (cons "redirects" "true") proplist))
+    (when section (push (cons "section" (format NIL "~a" section)) proplist))
+    (when sections (push (cons "sections" sections) proplist))
+    (when language (push (cons "uselang" language) proplist))
+    (when summary (push (cons "summary" summary) proplist))
+    (when text (push (cons "text" text) proplist))
+    (when title (push (cons "title" title) proplist))
+    (when contentmodel 
+      (assert (find contentmodel *parse-modellist*) () "CONETNTMODEL must be one of ~a." *parse-modellist*)
+      (push (cons "contentmodel" contentmodel) proplist))
+    (when generatexml (push (cons "generatexml" "true") proplist))
+    (let ((query (request "parse" proplist)))
+      (values (config-tree query :parse :text :*)
+              query))))
