@@ -14,7 +14,7 @@
   :license "Artistic"
   :author "Nicolas Hafner <shinmera@tymoon.eu>"
   :maintainer "Nicolas Hafner <shinmera@tymoon.eu>"
-  :description "Mediawiki interaction library."
+  :description "Simple and incomplete Mediawiki interaction library."
   :components ((:file "package")
                (:file "wiki" :depends-on ("package")))
   :depends-on (:drakma
