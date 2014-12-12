@@ -37,11 +37,13 @@
                                        :external-format-in :utf-8
                                        :external-format-out :utf-8))
             (json NIL))
-        (setf json (json:decode-json resp))
-        (close resp)      
-        (when (config-tree json :error)
-          (error 'wiki-error :json json :info (config-tree json :error :info) :code (config-tree json :error :code)))
-        json)
+        (unwind-protect
+             (progn
+               (setf json (json:decode-json resp))
+               (when (config-tree json :error)
+                 (error 'wiki-error :json json :info (config-tree json :error :info) :code (config-tree json :error :code)))
+               json)
+          (close resp)))
     (re-request (&optional new-extraparams)
       (request action (or new-extraparams extraparams)))))
 
